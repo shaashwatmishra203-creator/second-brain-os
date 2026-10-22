@@ -1,0 +1,7 @@
+{
+  "enabled": true,
+  "lightAgent": "haiku-worker",
+  "heavyAgent": null,
+  "maxLightChars": 320,
+  "announce": true
+}

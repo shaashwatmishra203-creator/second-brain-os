@@ -1,0 +1,6 @@
+{
+  "name": "second-brain",
+  "version": "0.1.0",
+  "description": "Live pane beside the chat showing the ccmod knowledge graph, session relay and model routing",
+  "types": "./types/index.d.ts"
+}

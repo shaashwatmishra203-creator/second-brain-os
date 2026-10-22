@@ -1,0 +1,12 @@
+{
+  "name": "second-brain-os",
+  "owner": { "name": "Second Brain OS" },
+  "plugins": [
+    {
+      "name": "second-brain",
+      "source": "./mod",
+      "description": "Knowledge-graph and session-vitals panes for Claude Code",
+      "version": "0.2.0"
+    }
+  ]
+}

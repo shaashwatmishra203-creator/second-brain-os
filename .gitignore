@@ -1,0 +1,9 @@
+# Your graph and relay traffic are yours — they index your own memories,
+# session titles and project paths. Never commit them.
+data/
+config/*.json
+!config/*.example.json
+dashboard.html
+node_modules/
+.DS_Store
+*.log

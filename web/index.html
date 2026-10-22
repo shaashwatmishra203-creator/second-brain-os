@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Second Brain</title>
+<style>
+  :root {
+    --accent: #7c6cf0;
+    --bg: #f7f7f9; --panel: #ffffff; --ink: #16161a; --muted: #6b6b78;
+    --line: rgba(0,0,0,.10); --chip: rgba(0,0,0,.05); --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    --ok: #16a34a; --warn: #d97706; --idle: #9ca3af;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0d11; --panel: #16161c; --ink: #ececf1; --muted: #9a9aa8;
+      --line: rgba(255,255,255,.10); --chip: rgba(255,255,255,.06);
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+      --ok: #4ade80; --warn: #fbbf24; --idle: #6b7280;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f7f9; --panel: #ffffff; --ink: #16161a; --muted: #6b6b78;
+    --line: rgba(0,0,0,.10); --chip: rgba(0,0,0,.05);
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+    --ok: #16a34a; --warn: #d97706; --idle: #9ca3af;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d11; --panel: #16161c; --ink: #ececf1; --muted: #9a9aa8;
+    --line: rgba(255,255,255,.10); --chip: rgba(255,255,255,.06);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    --ok: #4ade80; --warn: #fbbf24; --idle: #6b7280;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 20px; background: color-mix(in oklab, var(--panel) 88%, transparent);
+    backdrop-filter: blur(12px); border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.01em; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
+  .spacer { flex: 1; }
+  .stat { display: flex; flex-direction: column; line-height: 1.15; }
+  .stat b { font-variant-numeric: tabular-nums; font-size: 15px; }
+  .stat span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .btn {
+    border: 1px solid var(--line); background: var(--panel); border-radius: 9px;
+    padding: 7px 12px; font-size: 13px; transition: .15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); color: #fff; }
+
+  main { padding: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .card.full { grid-column: 1 / -1; }
+  .card > h2 {
+    margin: 0; padding: 13px 16px; font-size: 12px; font-weight: 650;
+    text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px;
+  }
+  .card > h2 .count { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink); opacity: .55; letter-spacing: 0; text-transform: none; }
+  .card .body { padding: 14px 16px; }
+  .card .body.flush { padding: 0; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.trunc { max-width: 1px; }
+  .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px;
+    background: var(--chip); font-size: 11px; color: var(--muted); white-space: nowrap;
+  }
+  .chip.on { background: color-mix(in oklab, var(--accent) 20%, transparent); color: var(--accent); font-weight: 600; }
+  .chip button { border: 0; background: none; padding: 0; }
+  .pill { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+  .pill.active { background: var(--ok); } .pill.idle { background: var(--idle); } .pill.stale { background: var(--idle); opacity: .4; }
+
+  /* The entity pills from a graph browser's legend: count / total, name.
+     Named .tpill because .pill is already the 7px status dot. */
+  .tpill {
+    display: inline-flex; align-items: baseline; gap: 4px;
+    padding: 4px 11px; border-radius: 999px; border: 0; cursor: pointer;
+    background: color-mix(in oklab, var(--pc) 20%, transparent);
+    color: var(--pc); font-size: 11.5px; font-weight: 600; transition: .15s;
+    /* without these the pills squeeze to nothing and their text spills out */
+    flex: 0 0 auto; white-space: nowrap; line-height: 1.5;
+  }
+  .tpill.on { background: var(--pc); color: #fff; }
+  .tpill .sep { opacity: .55; font-weight: 400; }
+  .tpill:not(.on) { opacity: .45; }
+  .tpill b { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+  .editrow { display: flex; gap: 6px; margin-top: 8px; }
+  .editrow input {
+    flex: 1; min-width: 0; padding: 5px 8px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+    font: inherit; font-size: 12px;
+  }
+  .btn.danger, .link-btn.danger { color: #d9566f; }
+  .btn.danger:hover { border-color: #d9566f; }
+  #insp-title { outline: none; border-bottom: 1px dashed transparent; }
+  #insp-title:focus { border-bottom-color: var(--accent); }
+
+  .bar { height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+
+  .graph-wrap { position: relative; }
+  #graph { display: block; width: 100%; height: 460px; cursor: grab; }
+  #graph.dragging { cursor: grabbing; }
+  .graph-toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+  }
+  .graph-toolbar input[type=search], .graph-toolbar input[type=text] {
+    flex: 1; min-width: 180px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit;
+  }
+  .graph-toolbar input:focus { outline: 2px solid color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: -1px; }
+  .legend { display: flex; gap: 7px; flex-wrap: wrap; padding: 12px 16px 4px; align-items: center; }
+
+  .inspector {
+    position: absolute; right: 12px; top: 12px; width: 290px; max-height: calc(100% - 24px);
+    overflow: auto; background: color-mix(in oklab, var(--panel) 95%, transparent);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    box-shadow: var(--shadow); font-size: 13px; display: none;
+  }
+  .inspector.open { display: block; }
+  .inspector h3 { margin: 0 0 4px; font-size: 14px; }
+  .inspector .meta { color: var(--muted); font-size: 11px; margin-bottom: 8px; word-break: break-all; }
+  .inspector .snippet { color: var(--muted); max-height: 110px; overflow: hidden; margin: 8px 0; }
+  .inspector ul { margin: 6px 0 0; padding-left: 0; list-style: none; }
+  .inspector li { padding: 4px 0; border-top: 1px solid var(--line); }
+  .inspector .close { position: absolute; right: 8px; top: 8px; border: 0; background: none; color: var(--muted); font-size: 16px; }
+  .link-btn { border: 0; background: none; padding: 0; color: var(--accent); text-align: left; }
+
+  .drawer {
+    position: fixed; inset: 0 0 0 auto; width: min(380px, 92vw); background: var(--panel);
+    border-left: 1px solid var(--line); box-shadow: -8px 0 40px rgba(0,0,0,.25);
+    padding: 20px; overflow: auto; transform: translateX(100%); transition: transform .22s ease; z-index: 40;
+  }
+  .drawer.open { transform: none; }
+  .drawer h2 { margin: 0 0 4px; font-size: 16px; }
+  .drawer p.hint { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
+  .drawer label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 5px; }
+  .drawer input[type=text], .drawer input[type=number], .drawer select {
+    width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); font: inherit;
+  }
+  .wrow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .wrow .grab { color: var(--muted); font-size: 11px; width: 18px; }
+  .wrow .nm { flex: 1; }
+  .wrow select { width: auto; padding: 3px 6px; font-size: 12px; }
+  .wrow .mv { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; width: 24px; height: 22px; line-height: 1; }
+  .drawer .actions { display: flex; gap: 8px; margin-top: 18px; }
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: .2s; z-index: 35; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+  .err { color: var(--warn); font-size: 12px; }
+  footer { padding: 8px 20px 28px; color: var(--muted); font-size: 11px; display: flex; gap: 12px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: var(--chip); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span><span id="title">Second Brain</span></div>
+  <div class="stat"><b id="s-nodes">–</b><span>nodes</span></div>
+  <div class="stat"><b id="s-edges">–</b><span>edges</span></div>
+  <div class="stat"><b id="s-sessions">–</b><span>peers</span></div>
+  <div class="stat"><b id="s-pending">–</b><span>unread</span></div>
+  <div class="spacer"></div>
+  <button class="btn" id="btn-ingest">Re-scan brain</button>
+  <button class="btn" id="btn-theme">Theme</button>
+  <button class="btn primary" id="btn-customize">Customize</button>
+</header>
+
+<main id="grid"></main>
+<footer>
+  <span id="stamp">loading…</span>
+  <span>·</span>
+  <span>config: <code>~/.claude/mods/config/dash.json</code></span>
+</footer>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <h2>Customize interface</h2>
+  <p class="hint">Rearrange, rename, resize, or switch off any panel. Saved to disk — the terminal view and this page both read it.</p>
+  <label for="f-title">Dashboard title</label>
+  <input type="text" id="f-title">
+  <label for="f-accent">Accent colour</label>
+  <input type="text" id="f-accent" placeholder="#7c6cf0">
+  <label for="f-theme">Theme</label>
+  <select id="f-theme"><option value="auto">Follow system</option><option value="dark">Dark</option><option value="light">Light</option></select>
+  <label for="f-refresh">Auto-refresh (seconds, 0 = off)</label>
+  <input type="number" id="f-refresh" min="0" max="600">
+  <label>Panels</label>
+  <div id="wlist"></div>
+  <div class="actions">
+    <button class="btn primary" id="btn-save">Save</button>
+    <button class="btn" id="btn-close">Cancel</button>
+  </div>
+</aside>
+
+<script src="app.js"></script>
+</body>
+</html>

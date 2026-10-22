@@ -1,0 +1,7 @@
+{
+  "vaults": [],
+  "includeTranscripts": true,
+  "includeMemories": true,
+  "includeClaudeMd": true,
+  "maxTranscriptsPerProject": 25
+}

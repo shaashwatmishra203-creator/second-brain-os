@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# ccmod — Claude Code mods launcher
+export NODE_NO_WARNINGS=1
+exec node --no-warnings "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/main.mjs" "$@"

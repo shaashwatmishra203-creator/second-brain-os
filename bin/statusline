@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Compact second-brain strip for the Claude Code status line.
+export NODE_NO_WARNINGS=1
+exec node --no-warnings "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/statusline.mjs" "$@"
