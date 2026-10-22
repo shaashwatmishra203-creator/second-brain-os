@@ -243,6 +243,20 @@ function renderGraphCard(d, w) {
       <button class="btn" id="g-link">+ Link</button>
       <button class="btn" id="g-reset">Reset</button>
     </div>
+    <!-- Inline, because the embedded pane this often runs in has no
+         window.prompt(): a prompt-based flow throws there. -->
+    <div class="graph-toolbar makerow" id="g-make" hidden>
+      <input type="text" id="mk-title" placeholder="name">
+      <input type="text" id="mk-label" placeholder="label (Note)">
+      <button class="btn primary" id="mk-go">Create node</button>
+      <button class="btn" id="mk-cancel">Cancel</button>
+    </div>
+    <div class="graph-toolbar makerow" id="g-linkrow" hidden>
+      <input type="text" id="lk-to" placeholder="link to node id">
+      <input type="text" id="lk-type" placeholder="LINKS_TO">
+      <button class="btn primary" id="lk-go">Create link</button>
+      <button class="btn" id="lk-cancel">Cancel</button>
+    </div>
     <div class="legend">${labels}</div>
     <div class="graph-wrap">
       <canvas id="graph"></canvas>
@@ -492,34 +506,55 @@ function wireGraphCard() {
     draw();
   };
   $('#g-run').onclick = runCypher;
-  $('#g-new').onclick = async () => {
-    const title = prompt('Name for the new node');
-    if (!title) return;
-    const label = prompt('Label (e.g. Note, Insight, Person)', 'Note') || 'Note';
-    const id = `${label.toLowerCase()}:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
-    await api('/api/node', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, labels: [label], props: { title } }),
-    });
-    await refresh({ graph: true });
-    await selectNode(id);
+  const showRow = (which) => {
+    $('#g-make').hidden = which !== 'node';
+    $('#g-linkrow').hidden = which !== 'link';
+    if (which === 'node') $('#mk-title').focus();
+    if (which === 'link') $('#lk-to').focus();
   };
-  $('#g-link').onclick = async () => {
+
+  $('#g-new').onclick = () => showRow($('#g-make').hidden ? 'node' : null);
+  $('#mk-cancel').onclick = () => showRow(null);
+  $('#mk-go').onclick = async () => {
+    const title = $('#mk-title').value.trim();
+    if (!title) { $('#stamp').textContent = 'a name is required'; return; }
+    const label = ($('#mk-label').value.trim() || 'Note').replace(/\s+/g, '');
+    const id = `${label.toLowerCase()}:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+    try {
+      await api('/api/node', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, labels: [label], props: { title } }),
+      });
+      $('#mk-title').value = '';
+      showRow(null);
+      await refresh({ graph: true });
+      await selectNode(id);
+      $('#stamp').textContent = `created ${id}`;
+    } catch (err) { $('#stamp').textContent = `create failed: ${err.message}`; }
+  };
+
+  $('#g-link').onclick = () => {
     if (!selected) { $('#stamp').textContent = 'select a node first, then press + Link'; return; }
-    const from = selected;
-    const to = prompt('Link to which node id?');
-    if (!to) return;
-    const type = (prompt('Relationship type', 'LINKS_TO') || 'LINKS_TO').toUpperCase();
+    showRow($('#g-linkrow').hidden ? 'link' : null);
+  };
+  $('#lk-cancel').onclick = () => showRow(null);
+  $('#lk-go').onclick = async () => {
+    const to = $('#lk-to').value.trim();
+    if (!selected || !to) { $('#stamp').textContent = 'pick a node and a target id'; return; }
+    const type = ($('#lk-type').value.trim() || 'LINKS_TO').toUpperCase().replace(/\s+/g, '_');
     try {
       await api('/api/edge', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ src: from, dst: to, type }),
+        body: JSON.stringify({ src: selected, dst: to, type }),
       });
+      $('#lk-to').value = '';
+      showRow(null);
       await refresh({ graph: true });
-      await selectNode(from);
+      await selectNode(selected);
+      $('#stamp').textContent = `linked -[:${type}]-> ${to}`;
     } catch (err) { $('#stamp').textContent = `link failed: ${err.message}`; }
   };
-  $('#g-cypher').onkeydown = (e) => { if (e.key === 'Enter') runCypher(); };
+
   $('#g-reset').onclick = () => {
     highlight = new Set(); hidden = new Set(); selected = null;
     $('#g-search').value = ''; $('#g-cypher').value = '';
@@ -625,8 +660,19 @@ async function selectNode(id) {
       });
       await refresh({ graph: true });
     };
-    document.getElementById('insp-del').onclick = async () => {
-      if (!confirm(`Delete ${p.title || full.id} and all its links?`)) return;
+    const delBtn = document.getElementById('insp-del');
+    delBtn.onclick = async () => {
+      // Two presses instead of confirm(), which this pane does not support.
+      if (delBtn.dataset.armed !== '1') {
+        delBtn.dataset.armed = '1';
+        delBtn.textContent = 'Press again to delete';
+        setTimeout(() => {
+          if (!delBtn.isConnected) return;
+          delBtn.dataset.armed = '0';
+          delBtn.textContent = 'Delete node';
+        }, 4000);
+        return;
+      }
       await api('/api/node', {
         method: 'DELETE', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: full.id }),
