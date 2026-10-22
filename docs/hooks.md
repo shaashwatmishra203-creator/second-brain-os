@@ -42,7 +42,15 @@ What each one does:
 - **Stop** with `asyncRewake` wakes an idle session when a peer sends it work,
   capped at five consecutive wakes so two sessions cannot ping-pong.
 
-Copy `agents/haiku-worker.md` to `~/.claude/agents/` for the cheap-model
-subagent, and the folders under `skills/` to `~/.claude/skills/`.
+`ccmod install` has already copied `agents/haiku-worker.md` and the folders
+under `skills/` into `~/.claude`; if you skipped it, run it now. Only this
+settings block is left by hand, because `settings.json` is yours to merge.
 
-Run `ccmod doctor` to check all of it.
+Run `ccmod doctor` to check all of it — `✓` is wired, `·` is an optional
+config falling back to defaults, `✗` needs attention.
+
+The paths above assume the checkout is at `~/.claude/mods`. If you cloned it
+somewhere else, point the commands at that `bin/ccmod` instead; your data stays
+in `~/.claude/mods/data` either way.
+
+See [`api.md`](api.md) for the HTTP API the explorer and the pane talk to.

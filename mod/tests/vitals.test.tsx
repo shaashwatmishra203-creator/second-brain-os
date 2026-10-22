@@ -33,14 +33,14 @@ const MEASURE = {
   context: { tokens: 124_000, window: 200_000, percent: 62 },
   rateLimits: [{ kind: 'five_hour', percentUsed: 31, resetsAt: '2099-01-01T00:00:00Z' }],
   cost: { usd: 1.27 },
-  changed: ['context'],
+  changed: ['context' as const],
 }
 
 const base = (on: any, skip: { process?: boolean } = {}) => {
   on('command.register', () => ({ value: { command: 'x' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: any) => ({ cwd: e.cwd }))
-  on('clock.every', () => ({ value: {} }))
+  on('clock.every', () => ({ value: undefined }))
   // the harness has no clock of its own; without this every `$.clock.now()` throws
   let t = 1_700_000_000_000
   on('clock.now', () => ({ value: (t += 1000) }))
@@ -49,7 +49,7 @@ const base = (on: any, skip: { process?: boolean } = {}) => {
   on('turn.complete', () => ({ text: '' }))
   on('tool.call', () => ({ result: {} }))
   on('agent.spawn', () => ({ model: 'claude-haiku-4-5', agentId: 'ag1' }))
-  if (!skip.process) on('process.run', () => ({ value: { exitCode: 0, stdout: '{}', stderr: '' } }))
+  if (!skip.process) on('process.run', () => ({ value: { exitCode: 0, stdout: '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
 }
 
 // ---------------------------------------------------------------- pure maths
@@ -188,6 +188,7 @@ test('a spawned subagent lands in the delegation log with its model', async ($, 
   await $.agent.spawn({
     tool_use_id: 'tu1', prompt: 'fix the typo', description: 'fix the typo',
     subagentType: 'haiku-worker', model: 'haiku', parentModel: 'claude-opus-5',
+    provider: { plugin: 'engine', tier: 'core' as const }, background: false, fork: false,
   })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
@@ -231,7 +232,7 @@ test('each tab says what it has rather than drawing blank', async ($, on) => {
 test('context reads as awaiting, not 0%, before the first response', async ($, on) => {
   base(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.session.measure({ context: { window: 200_000 }, rateLimits: [], changed: ['context'] })
+  await $.session.measure({ context: { window: 200_000 }, rateLimits: [], changed: ['context' as const] })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /awaiting the first response/ })).toBeDefined()
@@ -271,7 +272,7 @@ test('a whole turn runs without shelling out even once', async ($, on) => {
   base(on, { process: true })
   on('process.run', (_: unknown, e: any) => {
     spawned.push((e.argv ?? []).join(' '))
-    return { value: { exitCode: 0, stdout: '{}', stderr: '' } }
+    return { value: { exitCode: 0, stdout: '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })

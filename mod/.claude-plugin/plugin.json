@@ -1,6 +1,15 @@
 {
   "name": "second-brain",
-  "version": "0.1.0",
-  "description": "Live pane beside the chat showing the ccmod knowledge graph, session relay and model routing",
+  "version": "0.2.0",
+  "description": "Knowledge-graph and session-vitals panes for Claude Code: the ccmod second brain, token and rate-limit vitals, and a delegation log showing which model actually ran each subagent",
+  "author": {
+    "name": "Shaashwat Mishra",
+    "email": "shaashwatmishra203@gmail.com",
+    "url": "https://github.com/shaashwatmishra203-creator"
+  },
+  "homepage": "https://github.com/shaashwatmishra203-creator/second-brain-os",
+  "repository": "https://github.com/shaashwatmishra203-creator/second-brain-os",
+  "license": "MIT",
+  "keywords": ["knowledge-graph", "second-brain", "vitals", "token-usage", "model-routing", "session-relay"],
   "types": "./types/index.d.ts"
 }

@@ -16,11 +16,11 @@ const base = (on: any) => {
   on('command.register', () => ({ value: { command: 'x' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
-  on('clock.every', () => ({ value: {} }))
+  on('clock.every', () => ({ value: undefined }))
   let t = 1_700_000_000_000
   on('clock.now', () => ({ value: (t += 1000) }))
   on('session.measure', (_: any, e: any) => ({ changed: e.changed }))
-  on('process.run', () => ({ value: { exitCode: 0, stdout: '{}', stderr: '' } }))
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
 }
 
 const walk = (node: any, out: any[] = []): any[] => {
@@ -36,7 +36,7 @@ test('the band separates its groups instead of running them together', async ($,
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.session.measure({
     context: { tokens: 503_000, window: 1_000_000, percent: 50 },
-    rateLimits: [], cost: { usd: 31.11 }, changed: ['context'],
+    rateLimits: [], cost: { usd: 31.11 }, changed: ['context' as const],
   })
 
   const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
@@ -55,7 +55,7 @@ test('the vitals pane is built from spaced, bordered sections', async ($, on) =>
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.session.measure({
     context: { tokens: 503_000, window: 1_000_000, percent: 50 },
-    rateLimits: [], cost: { usd: 31.11 }, changed: ['context'],
+    rateLimits: [], cost: { usd: 31.11 }, changed: ['context' as const],
   })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
@@ -81,11 +81,11 @@ test('the vitals pane is built from spaced, bordered sections', async ($, on) =>
 
 test('a module can be pulled out into a panel of its own and put back', async ($, on) => {
   base(on)
-  on('ui.close', () => undefined)
+  on('ui.close', () => ({ value: undefined }))
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.session.measure({
     context: { tokens: 503_000, window: 1_000_000, percent: 50 },
-    rateLimits: [], cost: { usd: 31.11 }, changed: ['context'],
+    rateLimits: [], cost: { usd: 31.11 }, changed: ['context' as const],
   })
 
   // the usage tab offers to pull itself out

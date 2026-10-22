@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+const RUN = { args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } } as const
+
 const PANE = {
   plugin: 'second-brain', component: 'Pane', requestId: 'second-brain',
   props: { title: 'Second brain', isFocused: false, bodyColumns: 70, placement: 'dock',
@@ -30,7 +32,7 @@ const wire = (on: any, opts: { server?: boolean } = {}) => {
   on('session.start', (_: any, e: any) => ({ cwd: e.cwd }))
   let t = 1_700_000_000_000
   on('clock.now', () => ({ value: (t += 1000) }))
-  on('clock.every', () => ({ value: {} }))
+  on('clock.every', () => ({ value: undefined }))
   let version = 7
   on('http.fetch', (_: any, e: any) => {
     calls.push({ url: e.url, method: e.init?.method ?? 'GET', body: e.init?.body ? JSON.parse(e.init.body) : undefined })
@@ -45,8 +47,8 @@ const wire = (on: any, opts: { server?: boolean } = {}) => {
   })
   on('process.run', (_: any, e: any) => {
     const argv = (e.argv ?? []).join(' ')
-    if (argv.includes(' node ')) return { value: { exitCode: 0, stdout: JSON.stringify(DETAIL), stderr: '' } }
-    return { value: { exitCode: 0, stdout: JSON.stringify(SNAP), stderr: '' } }
+    if (argv.includes(' node ')) return { value: { exitCode: 0, stdout: JSON.stringify(DETAIL), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    return { value: { exitCode: 0, stdout: JSON.stringify(SNAP), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   return calls
 }
@@ -54,7 +56,7 @@ const wire = (on: any, opts: { server?: boolean } = {}) => {
 test('live is off until asked, then polls the write counter', async ($, on) => {
   const calls = wire(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   // nothing has reached the server yet: live defaults off
@@ -73,7 +75,7 @@ test('live is off until asked, then polls the write counter', async ($, on) => {
 test('a node can be renamed and moved from the pane', async ($, on) => {
   const calls = wire(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-list' })
@@ -97,7 +99,7 @@ test('a node can be renamed and moved from the pane', async ($, on) => {
 test('with no server the pane says so instead of failing silently', async ($, on) => {
   wire(on, { server: false })
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-list' })

@@ -1,5 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
+const RUN = { args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } } as const
+
 const SNAPSHOT = {
   at: '2026-10-22T14:00:00.000Z',
   stats: { nodes: 37, edges: 42, orphans: 0 },
@@ -60,22 +62,22 @@ const engine = (on: any, calls?: string[]) => {
     const argv = (e.argv ?? []).join(' ')
     calls?.push(argv)
     if (argv.includes(' node ')) {
-      return { value: { exitCode: 0, stdout: JSON.stringify(DETAIL), stderr: '' } }
+      return { value: { exitCode: 0, stdout: JSON.stringify(DETAIL), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (argv.includes(' lookup ')) {
-      return { value: { exitCode: 0, stdout: JSON.stringify(HITS), stderr: '' } }
+      return { value: { exitCode: 0, stdout: JSON.stringify(HITS), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (argv.includes('brain ingest')) {
-      return { value: { exitCode: 0, stdout: 'scanned', stderr: '' } }
+      return { value: { exitCode: 0, stdout: 'scanned', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
-    return { value: { exitCode: 0, stdout: JSON.stringify(SNAPSHOT), stderr: '' } }
+    return { value: { exitCode: 0, stdout: JSON.stringify(SNAPSHOT), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
 }
 
 test('the pane reports the graph counters on every surface', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
@@ -92,7 +94,7 @@ test('the pane reports the graph counters on every surface', async ($, on) => {
 test('surfaces with Svg draw the graph; the terminal lists it instead', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
@@ -114,7 +116,7 @@ test('nothing runs on a timer: ccmod is only shelled out to when asked', async (
   let timers = 0
   on('clock.every', () => {
     timers += 1
-    return { value: {} }
+    return { value: undefined }
   })
   engine(on, calls)
 
@@ -123,7 +125,7 @@ test('nothing runs on a timer: ccmod is only shelled out to when asked', async (
   expect(timers).toBe(0)
   expect(calls.length).toBe(0)
 
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
   expect(timers).toBe(0)
   expect(calls.length).toBe(1)
 })
@@ -131,7 +133,7 @@ test('nothing runs on a timer: ccmod is only shelled out to when asked', async (
 test('the list tab opens a node, and the node walks to its connections', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-list' })
@@ -149,7 +151,7 @@ test('the list tab opens a node, and the node walks to its connections', async (
 test('hiding a label drops it from the drawing', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect((await ui.find({ type: 'Svg' }))?.props?.alt).toBe('Knowledge graph: 3 nodes, 2 edges')
@@ -166,7 +168,7 @@ test('hiding a label drops it from the drawing', async ($, on) => {
 test('search finds nodes and the settings tab changes the drawing', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-list' })
@@ -189,7 +191,7 @@ test('the update button re-ingests, then re-reads', async ($, on) => {
   const calls: string[] = []
   engine(on, calls)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
   calls.length = 0
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
@@ -205,10 +207,10 @@ test('a refresh that fails leaves a readable note, not an empty pane', async ($,
   on('command.register', () => ({ value: { command: 'second-brain' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('session.start', (_: unknown, e: any) => ({ cwd: e.cwd }))
-  on('process.run', () => ({ value: { exitCode: 127, stdout: '', stderr: 'not found' } }))
+  on('process.run', () => ({ value: { exitCode: 127, stdout: '', stderr: 'not found', isStdoutTruncated: false, isStderrTruncated: false } }))
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
 
   expect(await ui.find({ type: 'Text', text: /ccmod exited 127/ })).toBeDefined()
@@ -247,7 +249,7 @@ test('the band carries figures only — no buttons above the prompt', async ($, 
 test('the size control grows the drawing', async ($, on) => {
   engine(on)
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  await $.command.run({ command: 'second-brain' })
+  await $.command.run({ command: 'second-brain', ...RUN })
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   const before = (await ui.find({ type: 'Svg' }))?.props?.width as number

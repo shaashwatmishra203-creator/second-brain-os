@@ -1,0 +1,37 @@
+{
+  "name": "second-brain-os",
+  "version": "0.2.0",
+  "description": "A Neo4j-shaped knowledge graph of what Claude Code already knows about your work, with a CLI, a Claude Code mod and a web explorer",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Shaashwat Mishra",
+    "email": "shaashwatmishra203@gmail.com",
+    "url": "https://github.com/shaashwatmishra203-creator"
+  },
+  "homepage": "https://github.com/shaashwatmishra203-creator/second-brain-os#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaashwatmishra203-creator/second-brain-os.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shaashwatmishra203-creator/second-brain-os/issues"
+  },
+  "keywords": ["claude-code", "knowledge-graph", "second-brain", "neo4j", "cypher", "sqlite", "plugin"],
+  "bin": { "ccmod": "./bin/ccmod" },
+  "main": "./lib/cli.mjs",
+  "exports": {
+    ".": "./lib/cli.mjs",
+    "./graph": "./lib/graph.mjs",
+    "./relay": "./lib/relay.mjs",
+    "./router": "./lib/router.mjs"
+  },
+  "files": ["bin", "lib", "web", "agents", "skills", "config", "docs"],
+  "scripts": {
+    "test": "node --test test/smoke.test.mjs",
+    "doctor": "./bin/ccmod doctor"
+  },
+  "engines": { "node": ">=22.5.0" },
+  "dependencies": {},
+  "private": false
+}

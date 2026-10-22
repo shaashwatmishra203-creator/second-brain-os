@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cli:
+    name: CLI on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22.5 is the floor: node:sqlite's DatabaseSync arrived there.
+        node: ['22.5', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Syntax-check every module
+        run: for f in lib/*.mjs; do node --check "$f"; done
+      - name: Tests
+        run: npm test
+      - name: Doctor runs on a clean HOME
+        run: HOME="$(mktemp -d)" ./bin/ccmod doctor
+
+  version-floor:
+    name: Old Node is refused with a sentence, not a stack trace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: ccmod exits 1 and explains itself
+        run: |
+          set +e
+          out="$(./bin/ccmod help 2>&1)"; code=$?
+          set -e
+          echo "$out"
+          [ "$code" = "1" ] || { echo "expected exit 1, got $code"; exit 1; }
+          echo "$out" | grep -q "Node 22.5 or newer" || { echo "missing the version message"; exit 1; }
+
+  manifests:
+    name: Manifests agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Valid JSON, and one version across all three
+        run: |
+          node -e '
+            const fs = require("fs");
+            const read = p => JSON.parse(fs.readFileSync(p, "utf8"));
+            const pkg = read("package.json");
+            const plugin = read("mod/.claude-plugin/plugin.json");
+            const market = read(".claude-plugin/marketplace.json");
+            const listed = market.plugins.find(p => p.name === plugin.name);
+            if (!listed) throw new Error("marketplace.json does not list " + plugin.name);
+            for (const [what, v] of [["package.json", pkg.version], ["plugin.json", plugin.version], ["marketplace.json", listed.version]]) {
+              if (v !== pkg.version) throw new Error(`version drift: ${what} is ${v}, package.json is ${pkg.version}`);
+            }
+            console.log("all three agree on " + pkg.version);
+          '
+      - name: Nothing private is tracked
+        run: |
+          if git ls-files | grep -E '^data/|graph\.db|router\.jsonl|^config/(brain|relay|route|dash)\.json$'; then
+            echo "private files are tracked — check .gitignore"; exit 1
+          fi
+          echo "clean"
