@@ -25,6 +25,10 @@ a flag), nothing to build, nothing to install from npm. On 22.5–22.12 it runs
 under `NODE_OPTIONS=--experimental-sqlite`, and the CLI tells you so rather
 than crashing.
 
+![The web explorer: a force-directed view of the knowledge graph, with label filters, full-text search and a Cypher box](docs/images/explorer.jpg)
+
+<sub>Screenshots use a small demo graph, not real data.</sub>
+
 ---
 
 ## Install
@@ -110,6 +114,11 @@ ccmod dash --html out.html                 # self-contained snapshot, no server
 
 `ccmod help` lists everything.
 
+`ccmod dash` puts the same picture in the terminal — graph breakdown, the live
+relay peers, and what the router has been sending to the cheap model:
+
+![The terminal dashboard: session relay peers, model-routing share, graph breakdown by label, and the most connected nodes](docs/images/terminal.jpg)
+
 ---
 
 ## The web explorer
@@ -128,6 +137,17 @@ Loopback only, on `127.0.0.1:7717`. A force-directed view of the whole graph:
 - **+ Node** and **+ Link** create them, inline.
 - Filter by label with the legend pills, search full-text, or run Cypher.
 - Panels are rearrangeable and the layout is saved.
+
+Clicking a node opens the inspector, which edits in place — set a property,
+unlink a connection, unpin or delete, with every connection listed and
+clickable:
+
+![The node inspector open on a project, listing its four connections with unlink buttons, and controls to set a property, unpin or delete](docs/images/inspector.jpg)
+
+Running Cypher highlights the matches and dims everything else, so a query is
+a way of looking rather than a list of rows:
+
+![A Cypher query selecting memories that belong to a project, with matching nodes highlighted and the rest dimmed](docs/images/query.jpg)
 
 Everything the explorer does is also an HTTP call you can make yourself —
 [`docs/api.md`](docs/api.md) is the reference.
@@ -207,7 +227,7 @@ web/                 the graph explorer
 mod/                 the Claude Code plugin (31 tests)
 skills/              brain · dash · relay · handoff
 agents/              the cheap-model subagent
-docs/                hooks.md · api.md
+docs/                hooks.md · api.md · images/
 test/                CLI tests, run against a throwaway HOME
 ```
 

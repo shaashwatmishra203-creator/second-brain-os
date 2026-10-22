@@ -5,7 +5,7 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -102,4 +102,45 @@ test('doctor reports the checkout it is actually running from', () => {
 
 test('an unknown command fails loudly', () => {
   assert.throws(() => run('nonsense-command'), /unknown command|Command failed/);
+});
+
+test('the server hands out the explorer from this checkout, not from ~/.claude', async () => {
+  // Regression: WEB used to resolve under ~/.claude/mods, which is where DATA
+  // lives, not the code. Any clone at another path served 404 for every page.
+  // These tests run from exactly that configuration, so this would have caught it.
+  const port = 7820 + (process.pid % 90);
+  const srv = spawn(CCMOD, ['dash', '--serve', '--port', String(port)], {
+    env: { ...process.env, HOME, NO_COLOR: '1' }, stdio: 'ignore',
+  });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    let page;
+    for (let tries = 0; tries < 50; tries++) {
+      try { page = await fetch(`${base}/`); break; } catch { await new Promise((r) => setTimeout(r, 100)); }
+    }
+    assert.ok(page, 'the server never came up');
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get('content-type') || '', /text\/html/);
+    assert.match(await page.text(), /<canvas[^>]*id="graph"|Second Brain/);
+
+    const js = await fetch(`${base}/app.js`);
+    assert.equal(js.status, 200, 'app.js must be served beside the page');
+
+    // Reads answer GET only, so a stray method cannot reach them.
+    assert.equal((await fetch(`${base}/api/graph`, { method: 'PUT' })).status, 404);
+    assert.equal((await fetch(`${base}/api/version`)).status, 200);
+
+    // ..  must not climb out of web/.
+    assert.equal((await fetch(`${base}/../../../etc/passwd`)).status, 404);
+
+    // The query endpoint takes either spelling.
+    for (const body of [{ query: 'MATCH (a:Note) RETURN a' }, { q: 'MATCH (a:Note) RETURN a' }]) {
+      const r = await fetch(`${base}/api/query`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+      });
+      assert.ok(Array.isArray((await r.json()).rows), `rows missing for ${Object.keys(body)[0]}`);
+    }
+  } finally {
+    srv.kill('SIGTERM');
+  }
 });

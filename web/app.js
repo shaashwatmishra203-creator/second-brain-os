@@ -276,11 +276,13 @@ let drag = null;
 let panning = null;
 
 function initSim() {
+  const canvas = $('#graph');
+  const seed = { w: (canvas?.clientWidth || 900) * 0.8, h: (canvas?.clientHeight || 500) * 0.8 };
   const nodes = GRAPH.nodes.map((n) => ({
     ...n,
     // A node the person dragged keeps the place they put it, on every client.
-    x: n.props?.pinX ?? (Math.random() - 0.5) * 600,
-    y: n.props?.pinY ?? (Math.random() - 0.5) * 400,
+    x: n.props?.pinX ?? (Math.random() - 0.5) * seed.w,
+    y: n.props?.pinY ?? (Math.random() - 0.5) * seed.h,
     pinned: n.props?.pinX !== undefined && n.props?.pinY !== undefined,
     vx: 0, vy: 0,
     r: Math.min(14, 4 + Math.sqrt(n.degree || 0) * 2.2),
@@ -297,11 +299,28 @@ function initSim() {
 
 function visibleNodes() { return sim.nodes.filter((n) => !hidden.has(primaryLabel(n))); }
 
+/**
+ * The ideal distance between two nodes, Fruchterman-Reingold's `k`: spread the
+ * nodes over the canvas we actually have rather than over fixed constants. A
+ * small graph on a wide canvas used to collapse into a blob in the middle,
+ * because the spring length and repulsion ignored both the area and the count.
+ */
+function idealDistance(n) {
+  const canvas = $('#graph');
+  const w = canvas?.clientWidth || 900;
+  const h = canvas?.clientHeight || 500;
+  // 0.55 keeps a margin so labels near the edge stay inside the canvas.
+  return Math.max(45, Math.min(190, 0.55 * Math.sqrt((w * h) / Math.max(1, n))));
+}
+
 function step() {
   const nodes = visibleNodes();
   const n = nodes.length;
   if (!n) return;
-  const repel = n > 400 ? 160 : 420;
+  const k = idealDistance(n);
+  // Repulsion falls off as 1/d², so it scales with k² to stay in balance with
+  // the springs; the cap keeps very large graphs from going slack.
+  const repel = (n > 400 ? 0.5 : 1) * k * k * 0.5;
   for (let i = 0; i < n; i++) {
     const a = nodes[i];
     for (let j = i + 1; j < n; j++) {
@@ -309,7 +328,8 @@ function step() {
       let dx = b.x - a.x, dy = b.y - a.y;
       let d2 = dx * dx + dy * dy;
       if (d2 < 0.01) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = 0.01; }
-      if (d2 > 90000) continue;
+      // Ignore pairs far enough apart to contribute almost nothing.
+      if (d2 > (6 * k) * (6 * k)) continue;
       const f = repel / d2;
       const d = Math.sqrt(d2);
       const fx = (dx / d) * f, fy = (dy / d) * f;
@@ -321,14 +341,17 @@ function step() {
     if (!a || !b || hidden.has(primaryLabel(a)) || hidden.has(primaryLabel(b))) continue;
     const dx = b.x - a.x, dy = b.y - a.y;
     const d = Math.hypot(dx, dy) || 0.01;
-    const f = (d - 70) * 0.012;
+    const f = (d - k) * 0.012;
     const fx = (dx / d) * f, fy = (dy / d) * f;
     a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
   }
   for (const node of nodes) {
     if (node.pinned) { node.vx = node.vy = 0; continue; }
-    node.vx -= node.x * 0.0022;
-    node.vy -= node.y * 0.0022;
+    // Pull toward the origin, weak enough that it centres the drawing
+    // without undoing the spread k just bought us.
+    const pull = 0.16 / k;
+    node.vx -= node.x * pull;
+    node.vy -= node.y * pull;
     if (drag && drag.node === node) { node.vx = node.vy = 0; continue; }
     node.vx *= 0.86; node.vy *= 0.86;
     node.x += node.vx * sim.alpha;
