@@ -13,8 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 22.5 is the floor: node:sqlite's DatabaseSync arrived there.
-        node: ['22.5', '22', '24']
+        # 22.13 is the floor: node:sqlite is unflagged from there on. It
+        # exists from 22.5 but only behind --experimental-sqlite.
+        node: ['22.13', '22', '24', '25']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,21 +29,41 @@ jobs:
         run: HOME="$(mktemp -d)" ./bin/ccmod doctor
 
   version-floor:
-    name: Old Node is refused with a sentence, not a stack trace
+    name: Node without SQLite is refused with a sentence
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 has no node:sqlite at all; 22.5 has it only behind a flag. Both
+        # must exit 1 with an explanation, never a stack trace.
+        include:
+          - node: '20'
+            expect: 'Upgrade to Node 22.13 or newer'
+          - node: '22.5'
+            expect: 'experimental-sqlite'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: ccmod exits 1 and explains itself
+          node-version: ${{ matrix.node }}
+      - name: ccmod exits 1 and says what to do
         run: |
           set +e
           out="$(./bin/ccmod help 2>&1)"; code=$?
           set -e
           echo "$out"
           [ "$code" = "1" ] || { echo "expected exit 1, got $code"; exit 1; }
-          echo "$out" | grep -q "Node 22.5 or newer" || { echo "missing the version message"; exit 1; }
+          echo "$out" | grep -q 'no built-in SQLite' || { echo "missing the explanation"; exit 1; }
+          echo "$out" | grep -q '${{ matrix.expect }}' || { echo "missing the remedy for this version"; exit 1; }
+          if echo "$out" | grep -qE 'at ModuleLoader|at async|^ *at '; then
+            echo "leaked a stack trace"; exit 1
+          fi
+          echo "refused cleanly"
+      - name: and works once the flag is given
+        if: matrix.node == '22.5'
+        run: |
+          NODE_OPTIONS=--experimental-sqlite ./bin/ccmod help | grep -q relay
+          echo "the suggested flag actually works"
 
   manifests:
     name: Manifests agree

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/shaashwatmishra203-creator/second-brain-os/actions/workflows/ci.yml/badge.svg)](https://github.com/shaashwatmishra203-creator/second-brain-os/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D22.5-brightgreen.svg)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-%3E%3D22.13-brightgreen.svg)](https://nodejs.org)
 
 Claude Code already knows a lot about your work — every memory it has written,
 every `CLAUDE.md`, every session you have run. It just has no way to show you
@@ -20,8 +20,10 @@ Three pieces, which work on their own or together:
 | **Session relay** | A file-backed mailbox so separate Claude Code sessions hand work to each other. One session plans, another builds; a handoff wakes an idle session up. |
 | **Model routing** | Classifies every prompt with regex — no extra API call, no added latency — and nudges mechanical work onto a cheap-model subagent instead of the expensive one. |
 
-**No dependencies.** Node 22.5+ (for the built-in `node:sqlite`), nothing to
-build, nothing to install from npm.
+**No dependencies.** Node 22.13+ (where the built-in `node:sqlite` stops needing
+a flag), nothing to build, nothing to install from npm. On 22.5–22.12 it runs
+under `NODE_OPTIONS=--experimental-sqlite`, and the CLI tells you so rather
+than crashing.
 
 ---
 

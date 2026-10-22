@@ -31,7 +31,7 @@
     "test": "node --test test/smoke.test.mjs",
     "doctor": "./bin/ccmod doctor"
   },
-  "engines": { "node": ">=22.5.0" },
+  "engines": { "node": ">=22.13.0" },
   "dependencies": {},
   "private": false
 }
